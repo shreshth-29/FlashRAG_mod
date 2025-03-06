@@ -611,7 +611,13 @@ class FastChatGenerator(HFCausalLMGenerator):
             max_gpu_memory = None
         else:
             device = "cuda"
-            gpu_memory_utilization = self._config.get("gpu_memory_utilization", 0.85)
+            gpu_memory_utilization = 0
+    
+        if "gpu_memory_utilization" not in self._config:
+            gpu_memory_utilization = 0.85
+        else:
+            gpu_memory_utilization = self._config["gpu_memory_utilization"]
+
             if self.gpu_num != 1:
                 available_gpu_memory = get_gpu_memory()
                 max_gpu_memory = str(int(min(available_gpu_memory) * gpu_memory_utilization)) + "GiB"
