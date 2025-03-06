@@ -522,6 +522,65 @@ class HFCausalLMGenerator(BaseGenerator):
         return logits, target_probs
 
 
+# class FastChatGenerator(HFCausalLMGenerator):
+#     def __init__(self, config, model=None):
+#         super().__init__(config)
+
+#     def _load_model(self, model=None):
+#         r"""Load model and tokenizer for generator."""
+
+#         def get_gpu_memory():
+#             """Get available memory for each GPU."""
+#             import torch
+#             gpu_memory = []
+#             for gpu_id in range(self.gpu_num):
+#                 with torch.cuda.device(gpu_id):
+#                     device = torch.cuda.current_device()
+#                     gpu_properties = torch.cuda.get_device_properties(device)
+#                     total_memory = gpu_properties.total_memory / (1024**3)
+#                     allocated_memory = torch.cuda.memory_allocated() / (1024**3)
+#                     available_memory = total_memory - allocated_memory
+#                     gpu_memory.append(available_memory)
+#             return gpu_memory
+
+#         if model is None:
+#             from fastchat.model import load_model
+
+#             if "gpu_memory_utilization" not in self._config:
+#                 gpu_memory_utilization = 0.85
+#             else:
+#                 gpu_memory_utilization = self._config["gpu_memory_utilization"]
+#             max_gpu_memory = None
+#             import torch
+#             self.gpu_num = torch.cuda.device_count()
+#             if self.gpu_num != 1:
+#                 available_gpu_memory = get_gpu_memory()
+#                 max_gpu_memory = str(int(min(available_gpu_memory) * gpu_memory_utilization)) + "GiB"
+
+#             model, tokenizer = load_model(
+#                 self.model_path,
+#                 device="cuda",
+#                 num_gpus=self.gpu_num,
+#                 max_gpu_memory=max_gpu_memory,
+#                 load_8bit=False,
+#                 cpu_offloading=False,
+#                 debug=False,
+#             )
+
+#         else:
+#             model.cuda()
+#             tokenizer = AutoTokenizer.from_pretrained(self.model_path, trust_remote_code=True)
+#         model.eval()
+
+#         tokenizer = AutoTokenizer.from_pretrained(self.model_path, trust_remote_code=True)
+#         if "qwen" not in self.model_name:
+#             tokenizer.pad_token = tokenizer.eos_token
+#         tokenizer.padding_side = "left"
+
+#         return model, tokenizer
+
+
+
 class FastChatGenerator(HFCausalLMGenerator):
     def __init__(self, config, model=None):
         super().__init__(config)
@@ -543,38 +602,44 @@ class FastChatGenerator(HFCausalLMGenerator):
                     gpu_memory.append(available_memory)
             return gpu_memory
 
-        if model is None:
-            from fastchat.model import load_model
-
-            if "gpu_memory_utilization" not in self._config:
-                gpu_memory_utilization = 0.85
-            else:
-                gpu_memory_utilization = self._config["gpu_memory_utilization"]
+        import torch
+        # Determine the number of GPUs available.
+        self.gpu_num = torch.cuda.device_count()
+        # Set device accordingly.
+        if self.gpu_num == 0:
+            device = "cpu"
             max_gpu_memory = None
-            import torch
-            self.gpu_num = torch.cuda.device_count()
+        else:
+            device = "cuda"
+            gpu_memory_utilization = self._config.get("gpu_memory_utilization", 0.85)
             if self.gpu_num != 1:
                 available_gpu_memory = get_gpu_memory()
                 max_gpu_memory = str(int(min(available_gpu_memory) * gpu_memory_utilization)) + "GiB"
+            else:
+                max_gpu_memory = None
 
+        if model is None:
+            from fastchat.model import load_model
             model, tokenizer = load_model(
                 self.model_path,
-                device="cuda",
+                device=device,
                 num_gpus=self.gpu_num,
                 max_gpu_memory=max_gpu_memory,
                 load_8bit=False,
                 cpu_offloading=False,
                 debug=False,
             )
-
         else:
-            model.cuda()
+            if self.gpu_num > 0:
+                model.cuda()
             tokenizer = AutoTokenizer.from_pretrained(self.model_path, trust_remote_code=True)
         model.eval()
 
+        # Always load the tokenizer fresh.
         tokenizer = AutoTokenizer.from_pretrained(self.model_path, trust_remote_code=True)
         if "qwen" not in self.model_name:
             tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "left"
 
         return model, tokenizer
+
