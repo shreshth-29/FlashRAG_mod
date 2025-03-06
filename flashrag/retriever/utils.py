@@ -7,6 +7,7 @@ import datasets
 import re
 import langid
 from transformers import AutoTokenizer, AutoModel, AutoConfig
+import torch
 
 def convert_numpy(obj: Union[Dict, list, np.ndarray, np.generic]) -> Any:
     """Recursively convert numpy objects in nested dictionaries or lists to native Python types."""
