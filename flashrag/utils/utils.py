@@ -37,20 +37,46 @@ def get_dataset(config):
     return split_dict
 
 
-def get_generator(config, **params):
-    """Automatically select generator class based on config."""
+# def get_generator(config, **params):
+#     """Automatically select generator class based on config."""
 
+#     if config['framework'] == 'openai':
+#         return getattr(importlib.import_module("flashrag.generator"), "OpenaiGenerator")(config, **params)
+    
+#     # judge multimodal model
+#     with open(os.path.join(config["generator_model_path"], "config.json"), "r") as f:
+#         model_config = json.load(f)
+#     arch = model_config['architectures'][0]
+#     if all(["vision" not in key for key in model_config.keys()]):
+#         is_mm = False
+#     else:
+#         is_mm = True
+    
+#     if is_mm:
+#         return getattr(importlib.import_module("flashrag.generator"), "HFMultiModalGenerator")(config, **params)
+#     else:
+#         if config["framework"] == "vllm":
+#             return getattr(importlib.import_module("flashrag.generator"), "VLLMGenerator")(config, **params)
+#         elif config["framework"] == "fschat":
+#             return getattr(importlib.import_module("flashrag.generator"), "FastChatGenerator")(config, **params)
+#         elif config["framework"] == "hf":
+#             if "t5" in arch.lower() or "bart" in arch.lower():
+#                 return getattr(importlib.import_module("flashrag.generator"), "EncoderDecoderGenerator")(config, **params)
+#             else:
+#                 return getattr(importlib.import_module("flashrag.generator"), "HFCausalLMGenerator")(config, **params)
+#         else:
+#             raise NotImplementedError
+
+from transformers import AutoConfig
+
+def get_generator(config, **params):
     if config['framework'] == 'openai':
         return getattr(importlib.import_module("flashrag.generator"), "OpenaiGenerator")(config, **params)
     
-    # judge multimodal model
-    with open(os.path.join(config["generator_model_path"], "config.json"), "r") as f:
-        model_config = json.load(f)
-    arch = model_config['architectures'][0]
-    if all(["vision" not in key for key in model_config.keys()]):
-        is_mm = False
-    else:
-        is_mm = True
+    # Use AutoConfig.from_pretrained to support remote model identifiers.
+    model_config = AutoConfig.from_pretrained(config["generator_model_path"], trust_remote_code=True)
+    arch = model_config.architectures[0]
+    is_mm = any("vision" in key for key in model_config.to_dict().keys())
     
     if is_mm:
         return getattr(importlib.import_module("flashrag.generator"), "HFMultiModalGenerator")(config, **params)
