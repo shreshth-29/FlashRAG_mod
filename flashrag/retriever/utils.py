@@ -51,15 +51,27 @@ def convert_numpy(obj: Union[Dict, list, np.ndarray, np.generic]) -> Any:
     else:
         return obj  # Return the object as-is if it's neither a dict, list, nor numpy type
     
+# def load_model(model_path: str, use_fp16: bool = False):
+#     model_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+#     model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+#     model.eval()
+#     model.cuda()
+#     if use_fp16:
+#         model = model.half()
+#     tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
+
+#     return model, tokenizer
+
 def load_model(model_path: str, use_fp16: bool = False):
     model_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
     model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
     model.eval()
-    model.cuda()
+    # Only move to GPU if one is available.
+    if torch.cuda.is_available() and torch.cuda.device_count() > 0:
+        model.cuda()
     if use_fp16:
         model = model.half()
     tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
-
     return model, tokenizer
 
 
