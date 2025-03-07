@@ -698,7 +698,6 @@ class FastChatGenerator(HFCausalLMGenerator):
                     max_gpu_memory=max_gpu_memory,
                     load_8bit=False,
                     cpu_offloading=True,
-                    low_cpu_mem_usage=True,
                     debug=False,
                     torch_dtype=torch.bfloat16  # Use BF16 on CPU
                 )
