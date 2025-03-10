@@ -699,7 +699,6 @@ class FastChatGenerator(HFCausalLMGenerator):
                     load_8bit=False,
                     cpu_offloading=True,
                     debug=False,
-                    torch_dtype=torch.bfloat16  # Use BF16 on CPU
                 )
             else:
                 model, tokenizer = load_model(
