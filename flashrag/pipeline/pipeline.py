@@ -2,6 +2,7 @@ from flashrag.evaluator import Evaluator
 from flashrag.dataset.utils import split_dataset, merge_dataset
 from flashrag.utils import get_retriever, get_generator, get_refiner, get_judger
 from flashrag.prompt import PromptTemplate
+from flashrag.dataset.dataset import Dataset
 
 
 class BasicPipeline:
