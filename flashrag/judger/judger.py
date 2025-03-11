@@ -64,6 +64,26 @@ class SKRJudger(BaseJudger):
         self.faiss = faiss_index
 
     @torch.inference_mode(mode=True)
+    # def encode(self, contents: list):
+    #     inputs = self.tokenizer(
+    #         contents,
+    #         padding=True,
+    #         truncation=True,
+    #         return_tensors="pt",
+    #         max_length=self.max_length,
+    #     ).to("cuda")
+    #     output = self.encoder(**inputs, return_dict=True)
+    #     embeddings = pooling(output.pooler_output, output.last_hidden_state, inputs["attention_mask"], "pooler")
+
+    #     embeddings = cast(torch.Tensor, embeddings)
+    #     embeddings = torch.nn.functional.normalize(embeddings, dim=-1).detach()
+
+    #     all_embeddings = embeddings.cpu().numpy()
+    #     # all_embeddings = np.concatenate(all_embeddings, axis=0)
+    #     all_embeddings = all_embeddings.astype(np.float32)
+
+    #     return all_embeddings
+    
     def encode(self, contents: list):
         inputs = self.tokenizer(
             contents,
@@ -73,16 +93,20 @@ class SKRJudger(BaseJudger):
             max_length=self.max_length,
         ).to("cuda")
         output = self.encoder(**inputs, return_dict=True)
-        embeddings = pooling(output.pooler_output, output.last_hidden_state, inputs["attention_mask"], "pooler")
-
-        embeddings = cast(torch.Tensor, embeddings)
+        
+        # Use pooler_output if available; otherwise, use the first token of last_hidden_state
+        if hasattr(output, "pooler_output") and output.pooler_output is not None:
+            pool_output = output.pooler_output
+        else:
+            pool_output = output.last_hidden_state[:, 0, :]
+        
+        embeddings = pooling(pool_output, output.last_hidden_state, inputs["attention_mask"], "pooler")
+        
+        # Normalize the embeddings and convert to numpy array
         embeddings = torch.nn.functional.normalize(embeddings, dim=-1).detach()
-
-        all_embeddings = embeddings.cpu().numpy()
-        # all_embeddings = np.concatenate(all_embeddings, axis=0)
-        all_embeddings = all_embeddings.astype(np.float32)
-
+        all_embeddings = embeddings.cpu().numpy().astype(np.float32)
         return all_embeddings
+
 
     def judge(self, dataset):
         if isinstance(dataset, Dataset):
