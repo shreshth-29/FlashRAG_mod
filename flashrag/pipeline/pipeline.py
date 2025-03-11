@@ -158,48 +158,53 @@ class ConditionalPipeline(BasicPipeline):
             user_prompt="Question: {question}",
         )
 
- def run(self, dataset, do_eval=True, pred_process_fun=None):
-    # 1. Use the judger to produce a list of boolean judgments.
-    judge_result = self.judger.judge(dataset)
-    dataset.update_output("judge_result", judge_result)
-
-    # 2. Split the dataset based on judge_result.
-    dataset_split = split_dataset(dataset, judge_result)
+    def run(self, dataset, do_eval=True, pred_process_fun=None):
+        
+        # 1. Use the judger to produce a list of boolean judgments.
+        judge_result = self.judger.judge(dataset)
+        dataset.update_output("judge_result", judge_result)
     
-    # Create an empty dataset object using a dummy item.
-    dummy = [{
-        "id": None,
-        "question": "",
-        "golden_answers": [],
-        "choices": [],
-        "metadata": {},
-        "output": {}
-    }]
-    empty_dataset = Dataset(config=self.config, data=dummy)
-    empty_dataset.data = []  # clear the dummy item
-
-    # 3. Retrieve positive and negative splits safely.
-    pos_dataset = dataset_split.get(True, empty_dataset)
-    neg_dataset = dataset_split.get(False, empty_dataset)
-
-    # 4. Process the splits using the appropriate pipelines.
-    if len(pos_dataset) > 0:
-        pos_dataset = self.sequential_pipeline.run(pos_dataset, do_eval=False)
-    if len(neg_dataset) > 0:
-        self.sequential_pipeline.prompt_template = self.zero_shot_templete
-        neg_dataset = self.sequential_pipeline.naive_run(neg_dataset, do_eval=False)
+        # 2. Split the dataset based on judge_result.
+        dataset_split = split_dataset(dataset, judge_result)
+        
+        # Create an empty dataset object using a dummy item.
+        dummy = [{
+            "id": None,
+            "question": "",
+            "golden_answers": [],
+            "choices": [],
+            "metadata": {},
+            "output": {}
+        }]
+        empty_dataset = Dataset(config=self.config, data=dummy)
+        empty_dataset.data = []  # clear the dummy item
     
-    # 5. Update the split dictionary with the processed datasets.
-    dataset_split[True] = pos_dataset
-    dataset_split[False] = neg_dataset
+        # 3. Retrieve positive and negative splits safely.
+        pos_dataset = dataset_split.get(True, empty_dataset)
+        neg_dataset = dataset_split.get(False, empty_dataset)
+    
+        # 4. Process the splits using the appropriate pipelines.
+        if len(pos_dataset) > 0:
+            pos_dataset = self.sequential_pipeline.run(pos_dataset, do_eval=False)
+        if len(neg_dataset) > 0:
+            self.sequential_pipeline.prompt_template = self.zero_shot_templete
+            neg_dataset = self.sequential_pipeline.naive_run(neg_dataset, do_eval=False)
+        
+        # 5. Update the split dictionary with the processed datasets.
+        dataset_split[True] = pos_dataset
+        dataset_split[False] = neg_dataset
+    
+        # 6. Merge the splits back into a single dataset.
+        merged_dataset = merge_dataset(dataset_split, judge_result)
+    
+        # 7. Evaluate the merged dataset.
+        merged_dataset = self.evaluate(merged_dataset, do_eval=do_eval, pred_process_fun=pred_process_fun)
+    
+        return merged_dataset
+        
+      
+      
 
-    # 6. Merge the splits back into a single dataset.
-    merged_dataset = merge_dataset(dataset_split, judge_result)
-
-    # 7. Evaluate the merged dataset.
-    merged_dataset = self.evaluate(merged_dataset, do_eval=do_eval, pred_process_fun=pred_process_fun)
-
-    return merged_dataset
 
 
 
